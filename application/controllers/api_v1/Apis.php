@@ -45,6 +45,7 @@ class Apis extends REST_Controller {
         $this->load->model('notification_model');
         $this->load->model('virtual_date_model');
         $this->load->model('help_model');
+        $this->load->model('faq_model');
     }
 
     private function generate_verification_code() {
@@ -396,6 +397,7 @@ class Apis extends REST_Controller {
             $preferences = $this->user_preference_model->getRows(['returnType' => 'single', 'conditions' => ['user_id' => $user['id']]]);
             if ($preferences) {
                 $user['preferences'] = $preferences;
+                $user['current_date'] = date("Y/m/d");
             }
 
             $photos = $this->user_photo_model->getRows(['conditions' => ['user_id' => $user['id']]]);
@@ -1432,6 +1434,22 @@ class Apis extends REST_Controller {
             $this->response(['success'=> true],REST_Controller::HTTP_OK);
         }else{
             $this->response("Some problems occurred, please try again.", REST_Controller::HTTP_BAD_REQUEST);
+        }
+    }
+    public function load_faq_get($limit){
+        $token = $this->input->get_request_header('Auth-Token');
+        if(!$this->verify_token($token)){
+            $this->response("You are not autorized to use the app.", REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        $decoded_token = $this->decode_token($token);
+        $user = $decoded_token['user'];
+        $limit = (int)$limit;
+        $result = $this->global_model->query("SELECT * FROM faqs LIMIT {$limit}");
+        if($result){
+            $this->response(['success'=>true, 'faqs'=>$result],REST_Controller::HTTP_OK);
+        }else{
+            $this->response("Some problems occured, please try again.",REST_Controller::HTTP_BAD_REQUEST);
         }
     }
 

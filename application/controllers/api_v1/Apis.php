@@ -297,6 +297,26 @@ class Apis extends REST_Controller {
         }
     }
 
+    public function plan_upgrade_user_put(){
+        $token = $this->input->get_request_header('Auth-Token');
+        if(!$this->verify_token($token)){
+            $this->response("You are not authorized to use the app.", REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        $decoded_token = $this->decode_token($token);
+        $user = $decoded_token['user'];
+        
+        $input = $this->put();
+        $result = $this->global_model->query("UPDATE users SET winkyblasts_count = winkyblasts_count + {$input['winkyblast_count']}, subscribed_plan = '{$input['subscribed_plan']}', subscribed_date = '{$input['subscribed_date']}' WHERE id = {$user->id}");
+
+        // $result = $this->global_model->query("UPDATE users SET winkyblasts_count = winkiblasts_count + {$input['winkyblast_count']} subscibed_plan = {$input['subscribed_plan']} subscribed_date = {$input['subscribed_date']} WHERE id = $user->id");
+        if($result){
+            $this->response(['success'=>true],REST_Controller::HTTP_OK);
+        }else{
+            $this->response("Some problems occurred, please try again.", REST_Controller::HTTP_BAD_REQUEST);
+        }
+    }
+
     public function freewinkyblast_receive_post(){
         $token = $this->input->get_request_header('Auth-Token');
         if (!$this->verify_token($token)) {

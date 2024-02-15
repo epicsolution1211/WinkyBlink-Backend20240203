@@ -1269,42 +1269,23 @@ class Apis extends REST_Controller {
         $userdata = $this->user_model->getRows(['returnType' => 'single', 'conditions' => ['id' => (int)$user->id]]);
         $userplan = $userdata['subscribed_plan'];
         // $this->response($userplan);
-        $match = [];
-        if($userplan == "Plus"){
-            $matches = $this->global_model->query("SELECT 
-            m.*, 
-            u.name as user_name, 
-            u.address as user_address, 
-            u.latitude as latitude,
-            u.longtidue as longtidue,
-            up.photo as user_photo 
-            FROM users u 
-            left JOIN (SELECT user_id as user_id, photo as photo FROM users_photos group BY user_id) up
-            on u.id = up.user_id 
-            LEFT JOIN matches m 
-            on up.user_id=m.opponent_id 
-            WHERE m.user_id = '{$user->id}'
-            ORDER BY m.create_date ASC
-            LIMIT 10", "multiple"
+        $matches = $this->global_model->query("SELECT 
+        m.*, 
+        u.name as user_name, 
+        u.address as user_address, 
+        u.latitude as latitude,
+        u.longtidue as longtidue,
+        up.photo as user_photo 
+        FROM users u 
+        left JOIN (SELECT user_id as user_id, photo as photo FROM users_photos group BY user_id) up
+        on u.id = up.user_id 
+        LEFT JOIN matches m 
+        on up.user_id=m.opponent_id 
+        WHERE m.user_id = '{$user->id}'
+        ORDER BY m.create_date DESC
+        LIMIT ".$limit, "multiple"
         );
-        }else {
-            $matches = $this->global_model->query("SELECT 
-            m.*, 
-            u.name as user_name, 
-            u.address as user_address, 
-            u.latitude as latitude,
-            u.longtidue as longtidue,
-            up.photo as user_photo 
-            FROM users u 
-            left JOIN (SELECT user_id as user_id, photo as photo FROM users_photos group BY user_id) up
-            on u.id = up.user_id 
-            LEFT JOIN matches m 
-            on up.user_id=m.opponent_id 
-            WHERE m.user_id = '{$user->id}'
-            ORDER BY m.create_date DESC
-            LIMIT ".$limit, "multiple"
-            );
-        }
+
         $this->response(['success' => true, 'matches' => $matches], REST_Controller::HTTP_OK);
     }
 
@@ -1745,11 +1726,11 @@ class Apis extends REST_Controller {
                                             ORDER BY bu.create_date DESC
                                             LIMIT ".$limit, "multiple"
                                             );
-        if($virtualdate){
+        // if($virtualdate){
             $this->response(['success'=>true, 'virtual_dates_reveived'=>$virtualdate],REST_Controller::HTTP_OK);
-        }else{
-            $this->response("Some problems occured, please try again.",REST_Controller::HTTP_BAD_REQUEST);
-        }
+        // }else{
+        //     $this->response("Some problems occured, please try again.",REST_Controller::HTTP_BAD_REQUEST);
+        // }
     }
     public function load_sent_dates_get($limit){
         $token = $this->input->get_request_header('Auth-Token');
@@ -1780,61 +1761,95 @@ class Apis extends REST_Controller {
                                             ORDER BY v.create_date DESC
                                             LIMIT ".$limit, "multiple"
                                             );
-        if($virtualdate){
+        // if($virtualdate){
             $this->response(['success'=>true, 'virtual_dates_sent'=>$virtualdate],REST_Controller::HTTP_OK);
-        }else{
-            $this->response("Some problems occured, please try again.",REST_Controller::HTTP_BAD_REQUEST);
-        }
+        // }else{
+        //     $this->response("Some problems occured, please try again.",REST_Controller::HTTP_BAD_REQUEST);
+        // }
     }
 
 
     public function load_virtualable_users_get($limit) {
         // Verify the token
+        // $token = $this->input->get_request_header('Auth-Token');
+        // if (!$this->verify_token($token)) {
+        //     $this->response("You are not autorized to use the app.", REST_Controller::HTTP_BAD_REQUEST);
+        // }
+
+        // // Retrieve the user record from the token
+        // $decoded_token = $this->decode_token($token);
+        // $user = $decoded_token['user'];
+        // // $latitude = $this->get('latitude');
+        // // $lontitude = $this->get('longtidue');
+        // $users_preferences = $this->user_preference_model->getRows(['returnType' => 'single', 'conditions' => ['user_id' => $user->id]]);
+        // $user_info = $this->user_model->getRows(['returnType' => 'single', 'conditions' => ['id' => $user->id]]);
+
+        // if ($users_preferences === false) {
+        //     $this->response(['success' => true, 'users' => []], REST_Controller::HTTP_OK);
+        // } else {
+            
+        //     // }else if($user_info['is_flex_gps_enabled']==0){
+        //         $query = "SELECT u.*, up.photo FROM users u LEFT JOIN users_photos up ON up.user_id = u.id WHERE u.is_ghost_mode_enabled <> 1 AND u.id <> '{$user->id}' AND u.id NOT IN (SELECT opponent_id AS id FROM matches WHERE user_id = '{$user->id}')";
+
+        //         if ($users_preferences['looking_for'] !== "Both") {
+        //             $query = $query." AND u.gender = '{$users_preferences['looking_for']}'";
+        //         }
+        //         // $query = $query." AND u.height >= {$users_preferences['height_min']} AND u.height <= {$users_preferences['height_max']}";
+
+        //         // $date_of_birth_min = strtotime("-{$users_preferences['age_min']} year", time());
+        //         // $date_of_birth_min = date('Y-m-d', $date_of_birth_min);
+
+        //         // $date_of_birth_max = strtotime("-{$users_preferences['age_max']} year", time());
+        //         // $date_of_birth_max = date('Y-m-d', $date_of_birth_max);
+
+        //         // $scope = $this->calculate_mile($user_info['latitude'],$user_info['longtidue'],$users_preferences['distance_min'],$users_preferences['distance_max']);
+                
+        //         // $query = $query . " AND u.latitude <= " . (double)$scope['max_lat'] . " AND u.latitude >= " . (double)$scope['min_lat'] . " AND u.longtidue <= " . (double)$scope['max_lon'] . " AND u.longtidue >= " . (double)$scope['min_lon'] . "";
+
+        //         // // $query = $query." AND u.latitude <= '{(double)$scope['max_lat']}' AND u.latitude >= '{(double)$scope['min_lat']}' AND u.longtidue <= '{(double)$scope['max_lon']}' AND u.longtidue >= '{(double)$scope['min_lon']}'";
+
+        //         // $query = $query." AND u.date_of_birth <= '{$date_of_birth_min}' AND u.date_of_birth >= '{$date_of_birth_max}'";
+
+        //         $query = $query." GROUP BY u.id LIMIT {$limit}";
+
+        //         $users = $this->global_model->query($query);
+        //         $this->response(['success' => true, 'users' => $users, 'query' => $query], REST_Controller::HTTP_OK);
+        //     // }
+        // }
+
+
         $token = $this->input->get_request_header('Auth-Token');
         if (!$this->verify_token($token)) {
             $this->response("You are not autorized to use the app.", REST_Controller::HTTP_BAD_REQUEST);
         }
-
+        $limit = (int)$limit;
         // Retrieve the user record from the token
         $decoded_token = $this->decode_token($token);
         $user = $decoded_token['user'];
-        // $latitude = $this->get('latitude');
-        // $lontitude = $this->get('longtidue');
-        $users_preferences = $this->user_preference_model->getRows(['returnType' => 'single', 'conditions' => ['user_id' => $user->id]]);
-        $user_info = $this->user_model->getRows(['returnType' => 'single', 'conditions' => ['id' => $user->id]]);
+        $userdata = $this->user_model->getRows(['returnType' => 'single', 'conditions' => ['id' => (int)$user->id]]);
+        $userplan = $userdata['subscribed_plan'];
+        // $this->response($userplan);
+        $matches = $this->global_model->query("SELECT 
+            m.*, 
+            u.name as name, 
+            u.address as address, 
+            u.latitude as latitude,
+            u.longtidue as longtidue,
+            up.photo as photo ,
+            m.opponent_id as user_id
 
-        if ($users_preferences === false) {
-            $this->response(['success' => true, 'users' => []], REST_Controller::HTTP_OK);
-        } else {
-            
-            // }else if($user_info['is_flex_gps_enabled']==0){
-                $query = "SELECT u.*, up.photo FROM users u LEFT JOIN users_photos up ON up.user_id = u.id WHERE u.is_ghost_mode_enabled <> 1 AND u.id <> '{$user->id}' AND u.id NOT IN (SELECT opponent_id AS id FROM matches WHERE user_id = '{$user->id}')";
+            FROM users u 
+            left JOIN (SELECT user_id as user_id, photo as photo FROM users_photos group BY user_id) up
+            on u.id = up.user_id 
+            LEFT JOIN matches m 
+            on up.user_id=m.opponent_id 
+            WHERE m.user_id = '{$user->id}'
+            ORDER BY m.create_date DESC
+            LIMIT ".$limit, "multiple"
+        );
 
-                if ($users_preferences['looking_for'] !== "Both") {
-                    $query = $query." AND u.gender = '{$users_preferences['looking_for']}'";
-                }
-                // $query = $query." AND u.height >= {$users_preferences['height_min']} AND u.height <= {$users_preferences['height_max']}";
+        $this->response(['success' => true, 'users' => $matches], REST_Controller::HTTP_OK);
 
-                // $date_of_birth_min = strtotime("-{$users_preferences['age_min']} year", time());
-                // $date_of_birth_min = date('Y-m-d', $date_of_birth_min);
-
-                // $date_of_birth_max = strtotime("-{$users_preferences['age_max']} year", time());
-                // $date_of_birth_max = date('Y-m-d', $date_of_birth_max);
-
-                // $scope = $this->calculate_mile($user_info['latitude'],$user_info['longtidue'],$users_preferences['distance_min'],$users_preferences['distance_max']);
-                
-                // $query = $query . " AND u.latitude <= " . (double)$scope['max_lat'] . " AND u.latitude >= " . (double)$scope['min_lat'] . " AND u.longtidue <= " . (double)$scope['max_lon'] . " AND u.longtidue >= " . (double)$scope['min_lon'] . "";
-
-                // // $query = $query." AND u.latitude <= '{(double)$scope['max_lat']}' AND u.latitude >= '{(double)$scope['min_lat']}' AND u.longtidue <= '{(double)$scope['max_lon']}' AND u.longtidue >= '{(double)$scope['min_lon']}'";
-
-                // $query = $query." AND u.date_of_birth <= '{$date_of_birth_min}' AND u.date_of_birth >= '{$date_of_birth_max}'";
-
-                $query = $query." GROUP BY u.id LIMIT {$limit}";
-
-                $users = $this->global_model->query($query);
-                $this->response(['success' => true, 'users' => $users, 'query' => $query], REST_Controller::HTTP_OK);
-            // }
-        }
 
             // $query = @unserialize (file_get_contents('http://ip-api.com/php/'));
             // if ($query && $query['status'] == 'success') {
@@ -1927,10 +1942,10 @@ class Apis extends REST_Controller {
                                             WHERE v.user_id = '{$user->id}'
                                             ORDER BY v.create_date DESC","count"
                                             );
-        if($virtualdate){
+        // if($virtualdate){
             $this->response(['success'=>true, 'virtual_dates_sent'=>$virtualdate],REST_Controller::HTTP_OK);
-        }else{
-            $this->response("Some problems occured, please try again.",REST_Controller::HTTP_BAD_REQUEST);
-        }
+        // }else{
+        //     $this->response("Some problems occured, please try again.",REST_Controller::HTTP_BAD_REQUEST);
+        // }
     }
 }

@@ -420,6 +420,62 @@ class Apis extends REST_Controller {
         $user = $decoded_token['user'];
 
         $user = $this->user_model->getRows(['returnType' => 'single', 'conditions' => ['id' => $user->id]]);
+        $current_date = time();
+        $update=[];
+        // $subscribedtime = 
+
+        if(strtotime('+1 month', strtotime($user['subscribed_date']))<$current_date){
+            $user['is_ghost_mode_enabled']=0;
+            $user['is_travel_mode_enabled']=0;
+            $user['is_winkyblinking_enabled']=0;
+            $user['is_winky_badge_enabled']=0;
+            $user['is_in_app_audio_chat_enabled']=0;
+
+            $user['is_notification_message_enabled']=0;
+            $user['is_notification_winkyblasts_enabled']=0;
+            $user['is_notification_speed_dating_enabled']=0;
+            $user['is_notification_virtual_dates_enabled']=0;
+
+            $update['is_ghost_mode_enabled']=0;
+            $update['is_travel_mode_enabled']=0;
+            $update['is_winkyblinking_enabled']=0;
+            $update['is_winky_badge_enabled']=0;
+            $update['is_in_app_audio_chat_enabled']=0;
+            $update['is_notification_message_enabled']=0;
+            $update['is_notification_winkyblasts_enabled']=0;
+            $update['is_notification_speed_dating_enabled']=0;
+            $update['is_notification_virtual_dates_enabled']=0;
+
+            $this->user_model->update($update,$user['id']);
+        }
+        else {
+            if(strtotime('+1 month', strtotime($user['in_app_audio_subscribed_date']))<$current_date){
+
+                $user['is_in_app_audio_chat_enabled']=0;
+                $update['is_in_app_audio_chat_enabled']=0;
+                $this->user_model->update($update,$user['id']);
+            }
+            if(strtotime('+1 month', strtotime($user['winkyblink_subscribed_date']))<$current_date){
+
+                $user['is_winkyblinking_enabled']=0;
+                $user['is_notification_speed_dating_enabled']=0;
+                $update['is_winkyblinking_enabled']=0;
+                $update['is_notification_speed_dating_enabled']=0;
+
+                $this->user_model->update($update,$user['id']);
+            }
+            if(strtotime('+1 month', strtotime($user['travel_mode_subscribed_date']))<$current_date){
+
+                $user['is_travel_mode_enabled']=0;
+                $update['is_travel_mode_enabled']=0;
+                $this->user_model->update($update,$user['id']);
+            }
+            if(strtotime('+1 month', strtotime($user['ghost_mode_subscribed_date']))<$current_date){
+                $user['is_ghost_mode_enabled']=0;
+                $update['is_ghost_mode_enabled']=0;
+                $this->user_model->update($update,$user['id']);
+            }
+        }
         if($user) {
             $preferences = $this->user_preference_model->getRows(['returnType' => 'single', 'conditions' => ['user_id' => $user['id']]]);
             if ($preferences) {
@@ -1447,6 +1503,8 @@ class Apis extends REST_Controller {
         $user = $decoded_token['user'];
 
         $input = $this->post();
+        $input['user_id'] = $user->id;
+
         $insert = $this->virtual_date_model->insert($input);
         if($insert) {
             $this->response(['success' => true], REST_Controller::HTTP_OK);
@@ -1455,7 +1513,7 @@ class Apis extends REST_Controller {
         }
     }
 
-    public function update_virtual_date_put($id) {
+    public function update_virtual_date_put() {
         // Verify the token
         $token = $this->input->get_request_header('Auth-Token');
         if (!$this->verify_token($token)) {
@@ -1467,12 +1525,13 @@ class Apis extends REST_Controller {
         $user = $decoded_token['user'];
 
         $input = $this->put();
-        $update = $this->virtual_date_model->update($input, $id);
-        if($update) {
-            $this->response(['success' => true], REST_Controller::HTTP_OK);
-        } else {
-            $this->response("Some problems occurred, please try again.", REST_Controller::HTTP_BAD_REQUEST);
-        }
+    
+        // $update = $this->virtual_date_model->update($input, $date_id);
+        // if($update) {
+            $this->response($input);
+        // } else {
+        //     $this->response("Some problems occurred, please try again.", REST_Controller::HTTP_BAD_REQUEST);
+        // }
     }
     public function buy_blast_user_post(){
         $token = $this->input->get_request_header('Auth-Token');
@@ -1554,12 +1613,101 @@ class Apis extends REST_Controller {
         $user = $decoded_token['user'];
         $limit = (int)$limit;
         $notifications = $this->notification_model->getRows(['conditions' => ['user_id' => $user->id]]);
+       
+        $virtualdate = $this->global_model->query("SELECT * FROM (
+                                                    SELECT
+                                                    bu.id as id,
+                                                    bu.name as user_name,
+                                                    -- bu.user_id as opponent_id,
+                                                    -- bu.opponent_id as user_id, 
+                                                    bu.user_id as user_id,
+                                                    bu.opponent_id as opponent_id, 
+                                                    bu.session_length as session_length,
+                                                    bu.date_time as date_time,
+                                                    bu.approval_status as approval_status,
+                                                    up.photo as user_photo,
+                                                    bu.create_date as create_date,
+                                                    bu.qb_id
+                                                    FROM (
+                                                        SELECT 
+                                                            b.id as id,
+                                                            u.name as name, 
+                                                            u.address as address, 
+                                                            u.latitude as latitude,
+                                                            u.longtidue as longtidue,
+                                                            u.qb_id,
+                                                            b.user_id as user_id, 
+                                                            b.opponent_id as opponent_id, 
+                                                            b.session_length as session_length, 
+                                                            b.date_time as date_time,
+                                                            b.approval_status as approval_status,
+                                                            b.create_date as create_date
+                                                        FROM (
+                                                            SELECT
+                                                                id as id,
+                                                                user_id as user_id, 
+                                                                opponent_id as opponent_id, 
+                                                                session_length as session_length, 
+                                                                date_time as date_time,
+                                                                approval_status as approval_status,
+                                                                create_date as create_date
+                                                            FROM virtual_dates 
+                                                            WHERE opponent_id = {$user->id} AND approval_status = 'Approved'
+                                                        ) b 
+                                                        LEFT JOIN users u ON u.id = b.user_id
+                                                    ) bu
+                                                    LEFT JOIN (
+                                                        SELECT user_id as user_id_up, photo as photo
+                                                        FROM users_photos
+                                                        GROUP BY user_id
+                                                    ) up ON bu.user_id = up.user_id_up
+                                                    
+                                                    UNION
+
+                                                    SELECT
+                                                        v.id as id,
+                                                        u.name as user_name, 
+                                                        v.opponent_id as user_id,
+                                                        v.user_id as opponent_id,
+                                                        v.session_length as session_length,
+                                                        v.date_time as date_time,
+                                                        v.approval_status as approval_status,
+                                                        up.photo as user_photo,
+                                                        v.create_date as create_date,
+                                                        u.qb_id
+                                                    FROM users u 
+                                                    LEFT JOIN (
+                                                        SELECT user_id as user_id, photo as photo
+                                                        FROM users_photos
+                                                        GROUP BY user_id
+                                                    ) up ON u.id = up.user_id 
+                                                    LEFT JOIN (
+                                                        SELECT *
+                                                        FROM virtual_dates
+                                                        WHERE approval_status='Approved'
+                                                    ) v ON up.user_id = v.opponent_id 
+                                                    WHERE v.user_id = {$user->id}
+                                                    ) as combineresult  ORDER BY create_date DESC LIMIT {$limit}");
+    
+        if($virtualdate){
+            $this->response(['success'=>true, 'virtual_dates'=>$virtualdate],REST_Controller::HTTP_OK);
+        }else{
+            $this->response("Some problems occured, please try again.",REST_Controller::HTTP_BAD_REQUEST);
+        }
+    }
+    public function load_received_dates_get($limit){
+        $token = $this->input->get_request_header('Auth-Token');
+        if(!$this->verify_token($token)){
+            $this->response("You are not autorized to use the app.", REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        $decoded_token = $this->decode_token($token);
+        $user = $decoded_token['user'];
+        $limit = (int)$limit;
+        $notifications = $this->notification_model->getRows(['conditions' => ['user_id' => $user->id]]);
         $virtualdate = $this->global_model->query("SELECT
                                             bu.id as id,
                                             bu.name as user_name,
-                                            bu.address as address,
-                                            bu.latitude as latitude,
-                                            bu.longtidue as longtidue,
                                             bu.user_id as user_id,
                                             bu.opponent_id as opponent_id, 
                                             bu.session_length as session_length,
@@ -1589,7 +1737,7 @@ class Apis extends REST_Controller {
                                                     approval_status as approval_status,
                                                     create_date as create_date
                                                     FROM virtual_dates 
-                                                    where opponent_id = '{$user->id}' AND approval_status NOT IN ('Rejected,Canceled')) b 
+                                                    where opponent_id = '{$user->id}' AND approval_status = 'Pending') b 
                                             LEFT JOIN users u
                                             ON u.id = b.user_id) bu
                                             LEFT JOIN (SELECT user_id as user_id_up, photo as photo FROM users_photos GROUP BY user_id ) up
@@ -1598,10 +1746,191 @@ class Apis extends REST_Controller {
                                             LIMIT ".$limit, "multiple"
                                             );
         if($virtualdate){
-            $this->response(['success'=>true, 'virtual_dates'=>$virtualdate],REST_Controller::HTTP_OK);
+            $this->response(['success'=>true, 'virtual_dates_reveived'=>$virtualdate],REST_Controller::HTTP_OK);
+        }else{
+            $this->response("Some problems occured, please try again.",REST_Controller::HTTP_BAD_REQUEST);
+        }
+    }
+    public function load_sent_dates_get($limit){
+        $token = $this->input->get_request_header('Auth-Token');
+        if(!$this->verify_token($token)){
+            $this->response("You are not autorized to use the app.", REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        $decoded_token = $this->decode_token($token);
+        $user = $decoded_token['user'];
+        $limit = (int)$limit;
+        $notifications = $this->notification_model->getRows(['conditions' => ['user_id' => $user->id]]);
+        $virtualdate = $this->global_model->query("SELECT
+                                            v.id as id,
+                                            u.name as user_name, 
+                                            v.user_id as user_id,
+                                            v.opponent_id as opponent_id, 
+                                            v.session_length as session_length,
+                                            v.date_time as date_time,
+                                            v.approval_status as approval_status,
+                                            up.photo as user_photo,
+                                            v.create_date as create_date
+                                            FROM users u 
+                                            left JOIN (SELECT user_id as user_id, photo as photo FROM users_photos group BY user_id) up
+                                            on u.id = up.user_id 
+                                            LEFT JOIN (SELECT * FROM virtual_dates WHERE approval_status='Pending') v 
+                                            on up.user_id=v.opponent_id 
+                                            WHERE v.user_id = '{$user->id}'
+                                            ORDER BY v.create_date DESC
+                                            LIMIT ".$limit, "multiple"
+                                            );
+        if($virtualdate){
+            $this->response(['success'=>true, 'virtual_dates_sent'=>$virtualdate],REST_Controller::HTTP_OK);
         }else{
             $this->response("Some problems occured, please try again.",REST_Controller::HTTP_BAD_REQUEST);
         }
     }
 
+
+    public function load_virtualable_users_get($limit) {
+        // Verify the token
+        $token = $this->input->get_request_header('Auth-Token');
+        if (!$this->verify_token($token)) {
+            $this->response("You are not autorized to use the app.", REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        // Retrieve the user record from the token
+        $decoded_token = $this->decode_token($token);
+        $user = $decoded_token['user'];
+        // $latitude = $this->get('latitude');
+        // $lontitude = $this->get('longtidue');
+        $users_preferences = $this->user_preference_model->getRows(['returnType' => 'single', 'conditions' => ['user_id' => $user->id]]);
+        $user_info = $this->user_model->getRows(['returnType' => 'single', 'conditions' => ['id' => $user->id]]);
+
+        if ($users_preferences === false) {
+            $this->response(['success' => true, 'users' => []], REST_Controller::HTTP_OK);
+        } else {
+            
+            // }else if($user_info['is_flex_gps_enabled']==0){
+                $query = "SELECT u.*, up.photo FROM users u LEFT JOIN users_photos up ON up.user_id = u.id WHERE u.is_ghost_mode_enabled <> 1 AND u.id <> '{$user->id}' AND u.id NOT IN (SELECT opponent_id AS id FROM matches WHERE user_id = '{$user->id}')";
+
+                if ($users_preferences['looking_for'] !== "Both") {
+                    $query = $query." AND u.gender = '{$users_preferences['looking_for']}'";
+                }
+                // $query = $query." AND u.height >= {$users_preferences['height_min']} AND u.height <= {$users_preferences['height_max']}";
+
+                // $date_of_birth_min = strtotime("-{$users_preferences['age_min']} year", time());
+                // $date_of_birth_min = date('Y-m-d', $date_of_birth_min);
+
+                // $date_of_birth_max = strtotime("-{$users_preferences['age_max']} year", time());
+                // $date_of_birth_max = date('Y-m-d', $date_of_birth_max);
+
+                // $scope = $this->calculate_mile($user_info['latitude'],$user_info['longtidue'],$users_preferences['distance_min'],$users_preferences['distance_max']);
+                
+                // $query = $query . " AND u.latitude <= " . (double)$scope['max_lat'] . " AND u.latitude >= " . (double)$scope['min_lat'] . " AND u.longtidue <= " . (double)$scope['max_lon'] . " AND u.longtidue >= " . (double)$scope['min_lon'] . "";
+
+                // // $query = $query." AND u.latitude <= '{(double)$scope['max_lat']}' AND u.latitude >= '{(double)$scope['min_lat']}' AND u.longtidue <= '{(double)$scope['max_lon']}' AND u.longtidue >= '{(double)$scope['min_lon']}'";
+
+                // $query = $query." AND u.date_of_birth <= '{$date_of_birth_min}' AND u.date_of_birth >= '{$date_of_birth_max}'";
+
+                $query = $query." GROUP BY u.id LIMIT {$limit}";
+
+                $users = $this->global_model->query($query);
+                $this->response(['success' => true, 'users' => $users, 'query' => $query], REST_Controller::HTTP_OK);
+            // }
+        }
+
+            // $query = @unserialize (file_get_contents('http://ip-api.com/php/'));
+            // if ($query && $query['status'] == 'success') {
+            //     $this->response('Hey user from ' . $query['country'] . ', ' . $query['city'] . '!');
+            //     // echo 'Hey user from ' . $query['country'] . ', ' . $query['city'] . '!';
+            // }
+            // // foreach ($query as $data) {
+            // //     echo $data . "<br>";
+            // //     $this->response()
+            // // }
+    }
+    public function accept_virtual_date_put() {
+        // Verify the token
+        $token = $this->input->get_request_header('Auth-Token');
+        if (!$this->verify_token($token)) {
+            $this->response("You are not autorized to use the app.", REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        $decoded_token = $this->decode_token($token);
+        $user = $decoded_token['user'];
+
+        $input = $this->put();
+        $update = $this->global_model->query("UPDATE virtual_dates SET approval_status='Approved' WHERE id={$input['id']}");
+        if($update) {
+            $this->response(['success'=>true],REST_Controller::HTTP_OK);
+        } else {
+            $this->response("Some problems occurred, please try again.", REST_Controller::HTTP_BAD_REQUEST);
+        }
+    }
+    public function reschedule_virtual_date_put() {
+        // Verify the token
+        $token = $this->input->get_request_header('Auth-Token');
+        if (!$this->verify_token($token)) {
+            $this->response("You are not autorized to use the app.", REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        $decoded_token = $this->decode_token($token);
+        $user = $decoded_token['user'];
+
+        $input = $this->put();
+        $update = $this->global_model->query("UPDATE virtual_dates SET date_time='{$input['date_time']}' WHERE id={$input['id']}");
+        if($update) {
+            $this->response(['success'=>true],REST_Controller::HTTP_OK);
+        } else {
+            $this->response("Some problems occurred, please try again.", REST_Controller::HTTP_BAD_REQUEST);
+        }
+    }
+    public function cancel_virtual_date_put() {
+        // Verify the token
+        $token = $this->input->get_request_header('Auth-Token');
+        if (!$this->verify_token($token)) {
+            $this->response("You are not autorized to use the app.", REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        $decoded_token = $this->decode_token($token);
+        $user = $decoded_token['user'];
+
+        $input = $this->put();
+        $update = $this->global_model->query("UPDATE virtual_dates SET approval_status='Canceled' WHERE id={$input['id']}");
+        if($update) {
+            $this->response(['success'=>true],REST_Controller::HTTP_OK);
+        } else {
+            $this->response("Some problems occurred, please try again.", REST_Controller::HTTP_BAD_REQUEST);
+        }
+    }
+    public function count_penddingdate_get(){
+        $token = $this->input->get_request_header('Auth-Token');
+        if(!$this->verify_token($token)){
+            $this->response("You are not autorized to use the app.", REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        $decoded_token = $this->decode_token($token);
+        $user = $decoded_token['user'];
+        // $notifications = $this->notification_model->getRows(['conditions' => ['usezzr_id' => $user->id]]);
+        $virtualdate = $this->global_model->query("SELECT
+                                            v.id as id,
+                                            u.name as user_name, 
+                                            v.user_id as user_id,
+                                            v.opponent_id as opponent_id, 
+                                            v.session_length as session_length,
+                                            v.date_time as date_time,
+                                            v.approval_status as approval_status,
+                                            up.photo as user_photo,
+                                            v.create_date as create_date
+                                            FROM users u 
+                                            left JOIN (SELECT user_id as user_id, photo as photo FROM users_photos group BY user_id) up
+                                            on u.id = up.user_id 
+                                            LEFT JOIN (SELECT * FROM virtual_dates WHERE approval_status='Pending') v 
+                                            on up.user_id=v.opponent_id 
+                                            WHERE v.user_id = '{$user->id}'
+                                            ORDER BY v.create_date DESC","count"
+                                            );
+        if($virtualdate){
+            $this->response(['success'=>true, 'virtual_dates_sent'=>$virtualdate],REST_Controller::HTTP_OK);
+        }else{
+            $this->response("Some problems occured, please try again.",REST_Controller::HTTP_BAD_REQUEST);
+        }
+    }
 }

@@ -281,7 +281,7 @@ class Apis extends REST_Controller {
             if($user_with_email) {
                 $this->response("This email address is already being used by another user.", REST_Controller::HTTP_BAD_REQUEST);
             } else {
-                if ($input['introduction_video_clip'] == '') {
+                if (isset($input['introduction_video_clip']) && $input['introduction_video_clip'] == '') {
                     $input['introduction_video_clip'] = NULL;
                 }
                 $update = $this->user_model->update($input, $user->id);            
@@ -292,7 +292,7 @@ class Apis extends REST_Controller {
                 }
             }
         } else {
-            if ($input['introduction_video_clip'] == '') {
+            if (isset($input['introduction_video_clip']) && $input['introduction_video_clip'] == '') {
                 $input['introduction_video_clip'] = NULL;
             }
             $update = $this->user_model->update($input, $user->id);
@@ -449,7 +449,7 @@ class Apis extends REST_Controller {
             $this->user_model->update($update,$user['id']);
         }
         else {
-            if(strtotime('+1 month', strtotime($user['in_app_audio_subscribed_date']))<$current_date){
+            if($user['subscribed_plan']!='Premium' && strtotime('+1 month', strtotime($user['in_app_audio_subscribed_date']))<$current_date){
 
                 $user['is_in_app_audio_chat_enabled']=0;
                 $update['is_in_app_audio_chat_enabled']=0;
@@ -464,13 +464,13 @@ class Apis extends REST_Controller {
 
                 $this->user_model->update($update,$user['id']);
             }
-            if(strtotime('+1 month', strtotime($user['travel_mode_subscribed_date']))<$current_date){
+            if($user['subscribed_plan']!='Premium' && strtotime('+1 month', strtotime($user['travel_mode_subscribed_date']))<$current_date){
 
                 $user['is_travel_mode_enabled']=0;
                 $update['is_travel_mode_enabled']=0;
                 $this->user_model->update($update,$user['id']);
             }
-            if(strtotime('+1 month', strtotime($user['ghost_mode_subscribed_date']))<$current_date){
+            if($user['subscribed_plan']!='Premium' && strtotime('+1 month', strtotime($user['ghost_mode_subscribed_date']))<$current_date){
                 $user['is_ghost_mode_enabled']=0;
                 $update['is_ghost_mode_enabled']=0;
                 $this->user_model->update($update,$user['id']);

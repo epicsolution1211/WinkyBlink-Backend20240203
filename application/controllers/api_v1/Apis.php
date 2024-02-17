@@ -578,7 +578,7 @@ class Apis extends REST_Controller {
         // Retrieve the user record from the token
         $decoded_token = $this->decode_token($token);
         $user = $decoded_token['user'];
-        
+
         $latitude = $this->get('latitude');
         $lontitude = $this->get('longtidue');
         $travel_mode = $this->get('travel_enabled');
@@ -595,20 +595,20 @@ class Apis extends REST_Controller {
                 if ($users_preferences['looking_for'] !== "Both") {
                     $query = $query." AND u.gender = '{$users_preferences['looking_for']}'";
                 }
-                $query = $query." AND u.height >= {$users_preferences['height_min']} AND u.height <= {$users_preferences['height_max']}";
+                // $query = $query." AND u.height >= {$users_preferences['height_min']} AND u.height <= {$users_preferences['height_max']}";
 
-                $date_of_birth_min = strtotime("-{$users_preferences['age_min']} year", time());
-                $date_of_birth_min = date('Y-m-d', $date_of_birth_min);
+                // $date_of_birth_min = strtotime("-{$users_preferences['age_min']} year", time());
+                // $date_of_birth_min = date('Y-m-d', $date_of_birth_min);
 
-                $date_of_birth_max = strtotime("-{$users_preferences['age_max']} year", time());
-                $date_of_birth_max = date('Y-m-d', $date_of_birth_max);
+                // $date_of_birth_max = strtotime("-{$users_preferences['age_max']} year", time());
+                // $date_of_birth_max = date('Y-m-d', $date_of_birth_max);
 
-                $scope = $this->calculate_mile($user_info['latitude'],$user_info['longtidue'],$latitude,$lontitude);
+                // $scope = $this->calculate_mile($user_info['latitude'],$user_info['longtidue'],$latitude,$lontitude);
                 
-                $query = $query . " AND u.latitude <= " . (double)$scope['max_lat'] . " AND u.latitude >= " . (double)$scope['min_lat'] . " AND u.longtidue <= " . (double)$scope['max_lon'] . " AND u.longtidue >= " . (double)$scope['min_lon'] . "";
+                // $query = $query . " AND u.latitude <= " . (double)$scope['max_lat'] . " AND u.latitude >= " . (double)$scope['min_lat'] . " AND u.longtidue <= " . (double)$scope['max_lon'] . " AND u.longtidue >= " . (double)$scope['min_lon'] . "";
 
 
-                $query = $query." AND u.date_of_birth <= '{$date_of_birth_min}' AND u.date_of_birth >= '{$date_of_birth_max}'";
+                // $query = $query." AND u.date_of_birth <= '{$date_of_birth_min}' AND u.date_of_birth >= '{$date_of_birth_max}'";
 
                 $query = $query." GROUP BY u.id";
 
@@ -620,19 +620,19 @@ class Apis extends REST_Controller {
                 if ($users_preferences['looking_for'] !== "Both") {
                     $query = $query." AND u.gender = '{$users_preferences['looking_for']}'";
                 }
-                $query = $query." AND u.height >= {$users_preferences['height_min']} AND u.height <= {$users_preferences['height_max']}";
+                // $query = $query." AND u.height >= {$users_preferences['height_min']} AND u.height <= {$users_preferences['height_max']}";
 
-                $date_of_birth_min = strtotime("-{$users_preferences['age_min']} year", time());
-                $date_of_birth_min = date('Y-m-d', $date_of_birth_min);
+                // $date_of_birth_min = strtotime("-{$users_preferences['age_min']} year", time());
+                // $date_of_birth_min = date('Y-m-d', $date_of_birth_min);
 
-                $date_of_birth_max = strtotime("-{$users_preferences['age_max']} year", time());
-                $date_of_birth_max = date('Y-m-d', $date_of_birth_max);
+                // $date_of_birth_max = strtotime("-{$users_preferences['age_max']} year", time());
+                // $date_of_birth_max = date('Y-m-d', $date_of_birth_max);
 
-                $scope = $this->calculate_mile($user_info['latitude'],$user_info['longtidue'],$users_preferences['distance_min'],$users_preferences['distance_max']);
+                // $scope = $this->calculate_mile($user_info['latitude'],$user_info['longtidue'],$users_preferences['distance_min'],$users_preferences['distance_max']);
                 
-                $query = $query . " AND u.latitude <= " . (double)$scope['max_lat'] . " AND u.latitude >= " . (double)$scope['min_lat'] . " AND u.longtidue <= " . (double)$scope['max_lon'] . " AND u.longtidue >= " . (double)$scope['min_lon'] . "";
+                // $query = $query . " AND u.latitude <= " . (double)$scope['max_lat'] . " AND u.latitude >= " . (double)$scope['min_lat'] . " AND u.longtidue <= " . (double)$scope['max_lon'] . " AND u.longtidue >= " . (double)$scope['min_lon'] . "";
 
-                $query = $query." AND u.date_of_birth <= '{$date_of_birth_min}' AND u.date_of_birth >= '{$date_of_birth_max}'";
+                // $query = $query." AND u.date_of_birth <= '{$date_of_birth_min}' AND u.date_of_birth >= '{$date_of_birth_max}'";
 
                 $query = $query." GROUP BY u.id";
 

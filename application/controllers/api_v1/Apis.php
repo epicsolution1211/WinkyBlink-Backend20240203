@@ -128,20 +128,17 @@ class Apis extends REST_Controller {
 
     public function send_verification_code_post() {
         $phone = $this->post('phone');
-        if(str_contains($phone, '9876')){
+        if(strpos($phone, '9876')!==false){
             $verification_code = "0925";
             $this->response(['success' => true, 'verification_code' => $verification_code], REST_Controller::HTTP_OK);
-        }else{
-            $verification_code = $this->generate_verification_code();
-            if($this->send_verification_code($phone, $verification_code)){
-                $this->response(['success' => true, 'verification_code' => $verification_code], REST_Controller::HTTP_OK);
-            }else{
-                $this->response("The phone number or password you entered is incorrect.", REST_Controller::HTTP_BAD_REQUEST);
-            }
-
-            // $verification_code = "0925";
         }
-    }
+        else{
+            $verification_code = $this->generate_verification_code();
+            $this->send_verification_code($phone, $verification_code);
+            $this->response(['success' => true, 'verification_code' => $verification_code], REST_Controller::HTTP_OK);
+        }    
+   }
+
 
     private function send_verification_code($phone, $code) {
         $twilio = new Client($this->twilio_sid, $this->twilio_token);
@@ -581,15 +578,18 @@ class Apis extends REST_Controller {
         // Retrieve the user record from the token
         $decoded_token = $this->decode_token($token);
         $user = $decoded_token['user'];
+        
         $latitude = $this->get('latitude');
         $lontitude = $this->get('longtidue');
+        $travel_mode = $this->get('travel_enabled');
+
         $users_preferences = $this->user_preference_model->getRows(['returnType' => 'single', 'conditions' => ['user_id' => $user->id]]);
         $user_info = $this->user_model->getRows(['returnType' => 'single', 'conditions' => ['id' => $user->id]]);
 
         if ($users_preferences === false) {
             $this->response(['success' => true, 'users' => []], REST_Controller::HTTP_OK);
         } else {
-            if($user_info['is_flex_gps_enabled']==1){
+            if($travel_mode==1){
                 $query = "SELECT u.*, up.photo FROM users u LEFT JOIN users_photos up ON up.user_id = u.id WHERE u.is_ghost_mode_enabled <> 1 AND u.id <> '{$user->id}' AND u.id NOT IN (SELECT opponent_id AS id FROM swipes WHERE user_id = '{$user->id}')";
 
                 if ($users_preferences['looking_for'] !== "Both") {
@@ -613,8 +613,8 @@ class Apis extends REST_Controller {
                 $query = $query." GROUP BY u.id";
 
                 $users = $this->global_model->query($query);
-                $this->response(['success' => true, 'users' => $users, 'query' => $query], REST_Controller::HTTP_OK);
-            }else if($user_info['is_flex_gps_enabled']==0){
+                $this->response(['success1' => true, 'users' => $users, 'query1' => $query], REST_Controller::HTTP_OK);
+            }else if($travel_mode==0){
                 $query = "SELECT u.*, up.photo FROM users u LEFT JOIN users_photos up ON up.user_id = u.id WHERE u.is_ghost_mode_enabled <> 1 AND u.id <> '{$user->id}' AND u.id NOT IN (SELECT opponent_id AS id FROM swipes WHERE user_id = '{$user->id}')";
 
                 if ($users_preferences['looking_for'] !== "Both") {
@@ -632,26 +632,14 @@ class Apis extends REST_Controller {
                 
                 $query = $query . " AND u.latitude <= " . (double)$scope['max_lat'] . " AND u.latitude >= " . (double)$scope['min_lat'] . " AND u.longtidue <= " . (double)$scope['max_lon'] . " AND u.longtidue >= " . (double)$scope['min_lon'] . "";
 
-                // $query = $query." AND u.latitude <= '{(double)$scope['max_lat']}' AND u.latitude >= '{(double)$scope['min_lat']}' AND u.longtidue <= '{(double)$scope['max_lon']}' AND u.longtidue >= '{(double)$scope['min_lon']}'";
-
                 $query = $query." AND u.date_of_birth <= '{$date_of_birth_min}' AND u.date_of_birth >= '{$date_of_birth_max}'";
 
                 $query = $query." GROUP BY u.id";
 
                 $users = $this->global_model->query($query);
-                $this->response(['success' => true, 'users' => $users, 'query' => $query], REST_Controller::HTTP_OK);
+                $this->response(['success0' => true, 'users' => $users, 'query0' => $query], REST_Controller::HTTP_OK);
             }
         }
-
-            // $query = @unserialize (file_get_contents('http://ip-api.com/php/'));
-            // if ($query && $query['status'] == 'success') {
-            //     $this->response('Hey user from ' . $query['country'] . ', ' . $query['city'] . '!');
-            //     // echo 'Hey user from ' . $query['country'] . ', ' . $query['city'] . '!';
-            // }
-            // // foreach ($query as $data) {
-            // //     echo $data . "<br>";
-            // //     $this->response()
-            // // }
     }
     
 
@@ -1670,11 +1658,11 @@ class Apis extends REST_Controller {
                                                     WHERE v.user_id = {$user->id}
                                                     ) as combineresult  ORDER BY create_date DESC LIMIT {$limit}");
     
-        if($virtualdate){
+        // if($virtualdate){
             $this->response(['success'=>true, 'virtual_dates'=>$virtualdate],REST_Controller::HTTP_OK);
-        }else{
-            $this->response("Some problems occured, please try again.",REST_Controller::HTTP_BAD_REQUEST);
-        }
+        // }else{
+        //     $this->response("Some problems occured, please try again.",REST_Controller::HTTP_BAD_REQUEST);
+        // }
     }
     public function load_received_dates_get($limit){
         $token = $this->input->get_request_header('Auth-Token');

@@ -160,9 +160,6 @@ class Apis extends REST_Controller {
         $password = $this->post('password');
 
         $user = $this->user_model->getRows(['returnType' => 'single', 'conditions' => ['uid' => $uid]]);
-        // $subscriptionDate = $user["subscribed_date"];
-        $currentDate = time();
-        
         if($user) {
             if ($user['password'] != $password) {
                 $this->response("The phone number or password you entered is incorrect.", REST_Controller::HTTP_BAD_REQUEST);
@@ -174,37 +171,31 @@ class Apis extends REST_Controller {
             $users_preferences = $this->user_preference_model->getRows(['returnType' => 'single', 'conditions' => ['user_id' => $user['id']]]);
 
             $token = $this->generate_token(['id' => $user['id']]);
+            $profile_completion = 'COMPLETED';
+            if (is_null($user['name'])) {
+                $profile_completion = 'NEED_NAME';
+            } else if (is_null($user['gender']) || is_null($user['email']) || is_null($user['zip_code']) || is_null($user['date_of_birth'])) {
+                $profile_completion = 'NEED_BASIC_INFORMATION';
+            } else if (is_null($user['subscribed_plan']) && is_null($user['subscribed_plan_assigned_by_admin'])) {
+                $profile_completion = 'NEED_MEMBERSHIP';
+            } else if (is_null($user['height']) || is_null($user['body_type']) || is_null($user['drink_type']) || is_null($user['smoke_type']) || is_null($user['education_level']) || is_null($user['consider_myself']) || is_null($user['idea_of_fun']) || is_null($user['cultural_background']) || is_null($user['favorite_movies']) || is_null($user['favorite_artists']) || is_null($user['interests']) || is_null($user['hobbies'])) {
+                $profile_completion = 'NEED_ABOUT_ME';
+            } else if (is_null($user['fun_fact_about_me'])) {
+                $profile_completion = 'NEED_ABOUT_ME_FUN_FACT';
+            } else if (count($user_photos) == 0) {
+                $profile_completion = 'NEED_ABOUT_ME_PHOTO';
+            } else if (!$users_preferences) {
+                $profile_completion = 'NEED_PREFERENCES';
+            } else if ($user['is_terms_accepted'] == '0' || $user['is_privacy_accepted'] == '0') {
+                $profile_completion = 'NEED_ABOUT_ME_TERMS_ACCEPANCE';
+            }
 
-                $planSubscribedstatus = 'NOEXPIRE';
-                if(strtotime('+1 month', strtotime($user['subscribed_date']))<$currentDate){
-                    $planSubscribedstatus = 'EXPIRE';
-                }
+            // $profile_completion = 'NEED_ABOUT_ME_FUN_FACT';
 
-                $profile_completion = 'COMPLETED';
-                if (is_null($user['name'])) {
-                    $profile_completion = 'NEED_NAME';
-                } else if (is_null($user['gender']) || is_null($user['email']) || is_null($user['zip_code']) || is_null($user['date_of_birth'])) {
-                    $profile_completion = 'NEED_BASIC_INFORMATION';
-                } else if (is_null($user['subscribed_plan']) && is_null($user['subscribed_plan_assigned_by_admin'])) {
-                    $profile_completion = 'NEED_MEMBERSHIP';
-                } else if (is_null($user['height']) || is_null($user['body_type']) || is_null($user['drink_type']) || is_null($user['smoke_type']) || is_null($user['education_level']) || is_null($user['consider_myself']) || is_null($user['idea_of_fun']) || is_null($user['cultural_background']) || is_null($user['favorite_movies']) || is_null($user['favorite_artists']) || is_null($user['interests']) || is_null($user['hobbies'])) {
-                    $profile_completion = 'NEED_ABOUT_ME';
-                } else if (is_null($user['fun_fact_about_me'])) {
-                    $profile_completion = 'NEED_ABOUT_ME_FUN_FACT';
-                } else if (count($user_photos) == 0) {
-                    $profile_completion = 'NEED_ABOUT_ME_PHOTO';
-                } else if (!$users_preferences) {
-                    $profile_completion = 'NEED_PREFERENCES';
-                } else if ($user['is_terms_accepted'] == '0' || $user['is_privacy_accepted'] == '0') {
-                    $profile_completion = 'NEED_ABOUT_ME_TERMS_ACCEPANCE';
-                }
-
-                // $profile_completion = 'NEED_ABOUT_ME_FUN_FACT';
-
-                $user['photos'] = $user_photos;
-                $user['preferences'] = $users_preferences;
-                
-                $this->response(['success' => true, 'token' => $token, 'uid' => $user['uid'], 'qb_id' => $user['qb_id'], 'profile_completion' => $profile_completion,'plansubscribed_status'=>$planSubscribedstatus], REST_Controller::HTTP_OK);
+            $user['photos'] = $user_photos;
+            $user['preferences'] = $users_preferences;
+            
+            $this->response(['success' => true, 'token' => $token, 'uid' => $user['uid'], 'qb_id' => $user['qb_id'], 'profile_completion' => $profile_completion], REST_Controller::HTTP_OK);
         } else {
             $this->response("The phone number or password you entered is incorrect.", REST_Controller::HTTP_BAD_REQUEST);
         }
@@ -320,26 +311,9 @@ class Apis extends REST_Controller {
         $user = $decoded_token['user'];
         
         $input = $this->put();
-        $result = $this->global_model->query("UPDATE users SET 
-                                                    subscribed_plan = '{$input['subscribed_plan']}', 
-                                                    subscribed_date = '{$input['subscribed_date']}',
-                                                    is_in_app_audio_chat_enabled = {$input['is_in_app_audio_chat_enabled']},
-                                                    is_winkyblinking_enabled = {$input['is_winkyblinking_enabled']},
-                                                    is_winky_badge_enabled = {$input['is_winky_badge_enabled']},
-                                                    is_travel_mode_enabled = {$input['is_travel_mode_enabled']},
-                                                    is_ghost_mode_enabled = {$input['is_ghost_mode_enabled']},
-                                                    in_app_audio_subscribed_date = '{$input['in_app_audio_subscribed_date']}',
-                                                    winkyblink_subscribed_date = '{$input['winkyblink_subscribed_date']}',
-                                                    travel_mode_subscribed_date = '{$input['travel_mode_subscribed_date']}',
-                                                    ghost_mode_subscribed_date = '{$input['ghost_mode_subscribed_date']}',
-                                                    is_notification_promotional_enabled = {$input['is_notification_promotional_enabled']},
-                                                    is_notification_message_enabled = {$input['is_notification_message_enabled']},
-                                                    is_notification_winkyblasts_enabled = {$input['is_notification_winkyblasts_enabled']},
-                                                    is_notification_speed_dating_enabled = {$input['is_notification_speed_dating_enabled']},
-                                                    is_notification_virtual_dates_enabled = {$input['is_notification_virtual_dates_enabled']}
-                                                WHERE id = {$user->id}");
+        $result = $this->global_model->query("UPDATE users SET winkyblasts_count = winkyblasts_count + {$input['winkyblast_count']}, subscribed_plan = '{$input['subscribed_plan']}', subscribed_date = '{$input['subscribed_date']}' WHERE id = {$user->id}");
 
-        
+        // $result = $this->global_model->query("UPDATE users SET winkyblasts_count = winkiblasts_count + {$input['winkyblast_count']} subscibed_plan = {$input['subscribed_plan']} subscribed_date = {$input['subscribed_date']} WHERE id = $user->id");
         if($result){
             $this->response(['success'=>true],REST_Controller::HTTP_OK);
         }else{
@@ -356,7 +330,7 @@ class Apis extends REST_Controller {
         // Retrieve the user record from the token
         $decoded_token = $this->decode_token($token);
         $user = $decoded_token['user'];
-        $this->global_model->query("UPDATE users SET is_freewinkyblast_received=1, winkyblasts_count = winkyblasts_count + 5 WHERE id='$user->id' AND is_freewinkyblast_received=0");
+        $this->global_model->query("UPDATE users SET winkyblasts_count = winkyblasts_count + 5 WHERE id='$user->id'");
         $this->response(['success' => true], REST_Controller::HTTP_OK);
     }
 
@@ -611,138 +585,54 @@ class Apis extends REST_Controller {
 
         $users_preferences = $this->user_preference_model->getRows(['returnType' => 'single', 'conditions' => ['user_id' => $user->id]]);
         $user_info = $this->user_model->getRows(['returnType' => 'single', 'conditions' => ['id' => $user->id]]);
-        $user_compabilityquestion = $this->user_answer_model->getRows(['returnType' => 'multiple', 'conditions'=> ['user_id'=> 36]]);
-        
+
         if ($users_preferences === false) {
             $this->response(['success' => true, 'users' => []], REST_Controller::HTTP_OK);
         } else {
-            $compability_count = 6.0;
             if($travel_mode==1){
-                
                 $query = "SELECT u.*, up.photo FROM users u LEFT JOIN users_photos up ON up.user_id = u.id WHERE u.is_ghost_mode_enabled <> 1 AND u.id <> '{$user->id}' AND u.id NOT IN (SELECT opponent_id AS id FROM swipes WHERE user_id = '{$user->id}')";
 
-                $scope = $this->calculate_mile($user_info['latitude'],$user_info['longtidue'],$latitude,$lontitude);
-                
-                $query = $query . " AND u.latitude <= " . (double)$scope['max_lat'] . " AND u.latitude >= " . (double)$scope['min_lat'] . " AND u.longtidue <= " . (double)$scope['max_lon'] . " AND u.longtidue >= " . (double)$scope['min_lon'] . " AND (";
                 if ($users_preferences['looking_for'] !== "Both") {
-                    $compability_count = $compability_count+ 1;
-                    $query = $query."  ( CASE WHEN u.gender = '{$users_preferences['looking_for']}' THEN 1 ELSE 0 END) +";
+                    $query = $query." AND u.gender = '{$users_preferences['looking_for']}'";
                 }
-                $query = $query."(CASE WHEN u.height >= {$users_preferences['height_min']} AND u.height <= {$users_preferences['height_max']} THEN 1 ELSE 0 END) +";
+                // $query = $query." AND u.height >= {$users_preferences['height_min']} AND u.height <= {$users_preferences['height_max']}";
 
-                $date_of_birth_min = strtotime("-{$users_preferences['age_min']} year", time());
-                $date_of_birth_min = date('Y-m-d', $date_of_birth_min);
+                // $date_of_birth_min = strtotime("-{$users_preferences['age_min']} year", time());
+                // $date_of_birth_min = date('Y-m-d', $date_of_birth_min);
 
-                $date_of_birth_max = strtotime("-{$users_preferences['age_max']} year", time());
-                $date_of_birth_max = date('Y-m-d', $date_of_birth_max);
+                // $date_of_birth_max = strtotime("-{$users_preferences['age_max']} year", time());
+                // $date_of_birth_max = date('Y-m-d', $date_of_birth_max);
 
-                $query = $query." (CASE WHEN u.date_of_birth <= '{$date_of_birth_min}' AND u.date_of_birth >= '{$date_of_birth_max}' THEN 1 ELSE 0 END)+";
+                // $scope = $this->calculate_mile($user_info['latitude'],$user_info['longtidue'],$latitude,$lontitude);
                 
-                $preferences = explode('||', $users_preferences['idea_of_fun']);
-                $preferencesString = "'" . implode("','", $preferences) . "'";
-                $query = $query." (CASE WHEN u.idea_of_fun IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
-                
-                if(strpos($users_preferences['body_types'], "I like them all")==false){
-                    $compability_count = $compability_count+ 1;
-                    $preferences = explode('||', $users_preferences['body_types']);
-                    $preferencesString = "'" . implode("','", $preferences) . "'";
-                    $query = $query." (CASE WHEN u.body_type IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
-                }
-                
-                if(strpos($users_preferences['drink_types'], "NoPreference")==false){
-                    $compability_count = $compability_count+ 1;
-                    $preferences = explode('||', $users_preferences['drink_types']);
-                    $preferencesString = "'" . implode("','", $preferences) . "'";
-                    $query = $query." (CASE WHEN u.drink_type IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
-                }
+                // $query = $query . " AND u.latitude <= " . (double)$scope['max_lat'] . " AND u.latitude >= " . (double)$scope['min_lat'] . " AND u.longtidue <= " . (double)$scope['max_lon'] . " AND u.longtidue >= " . (double)$scope['min_lon'] . "";
 
-                if(strpos($users_preferences['smoke_types'], "NoPreference")==false){
-                    $compability_count = $compability_count+ 1;
-                    $preferences = explode('||', $users_preferences['smoke_types']);
-                    $preferencesString = "'" . implode("','", $preferences) . "'";
-                    $query = $query." (CASE WHEN  u.smoke_type IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
-                }
 
-                $preferences = explode('||', $users_preferences['education_levels']);
-                $preferencesString = "'" . implode("','", $preferences) . "'";
-                $query = $query." (CASE WHEN u.education_level IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
+                // $query = $query." AND u.date_of_birth <= '{$date_of_birth_min}' AND u.date_of_birth >= '{$date_of_birth_max}'";
 
-                $preferences = explode('||', $users_preferences['cultural_background']);
-                $preferencesString = "'" . implode("','", $preferences) . "'";
-                $query = $query." (CASE WHEN u.cultural_background IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
-
-                $preferences = explode('||', $users_preferences['political_preferences']);
-                $preferencesString = "'" . implode("','", $preferences) . "'";
-                $query = $query . " (CASE WHEN u.consider_myself IN ({$preferencesString}) THEN 1 ELSE 0 END)+(";
-
-                $query = $query."SELECT COUNT(*) FROM users_answers q1 JOIN users_answers q2 ON q1.question_id = q2.question_id AND q1.answer = q2.answer WHERE q1.user_id = u.id AND q2.user_id = '{$user->id}') / ( SELECT COUNT(*) FROM users_answers WHERE user_id = '{$user->id}')";
-
-                $query = $query.")/{$compability_count} >=0.5";
                 $query = $query." GROUP BY u.id";
 
                 $users = $this->global_model->query($query);
                 $this->response(['success1' => true, 'users' => $users, 'query1' => $query], REST_Controller::HTTP_OK);
             }else if($travel_mode==0){
-                $query = "SELECT u.*, up.photo FROM users u LEFT JOIN users_photos up ON up.user_id = u.id WHERE u.is_ghost_mode_enabled <> 1 AND u.id <> '{$user->id}' AND u.id NOT IN (SELECT opponent_id AS id FROM swipes WHERE user_id = '{$user->id}') ";
-
-                $scope = $this->calculate_mile($user_info['latitude'],$user_info['longtidue'],$users_preferences['distance_min'],$users_preferences['distance_max']);
-                
-                $query = $query . " AND u.latitude <= " . (double)$scope['max_lat'] . " AND u.latitude >= " . (double)$scope['min_lat'] . " AND u.longtidue <= " . (double)$scope['max_lon'] . " AND u.longtidue >= " . (double)$scope['min_lon'] . " AND (";
+                $query = "SELECT u.*, up.photo FROM users u LEFT JOIN users_photos up ON up.user_id = u.id WHERE u.is_ghost_mode_enabled <> 1 AND u.id <> '{$user->id}' AND u.id NOT IN (SELECT opponent_id AS id FROM swipes WHERE user_id = '{$user->id}')";
 
                 if ($users_preferences['looking_for'] !== "Both") {
-                    $compability_count = $compability_count+ 1;
-                    $query = $query."  ( CASE WHEN u.gender = '{$users_preferences['looking_for']}' THEN 1 ELSE 0 END) +";
+                    $query = $query." AND u.gender = '{$users_preferences['looking_for']}'";
                 }
-                $query = $query."(CASE WHEN u.height >= {$users_preferences['height_min']} AND u.height <= {$users_preferences['height_max']} THEN 1 ELSE 0 END) +";
+                // $query = $query." AND u.height >= {$users_preferences['height_min']} AND u.height <= {$users_preferences['height_max']}";
 
-                $date_of_birth_min = strtotime("-{$users_preferences['age_min']} year", time());
-                $date_of_birth_min = date('Y-m-d', $date_of_birth_min);
+                // $date_of_birth_min = strtotime("-{$users_preferences['age_min']} year", time());
+                // $date_of_birth_min = date('Y-m-d', $date_of_birth_min);
 
-                $date_of_birth_max = strtotime("-{$users_preferences['age_max']} year", time());
-                $date_of_birth_max = date('Y-m-d', $date_of_birth_max);
+                // $date_of_birth_max = strtotime("-{$users_preferences['age_max']} year", time());
+                // $date_of_birth_max = date('Y-m-d', $date_of_birth_max);
 
-                $query = $query." (CASE WHEN u.date_of_birth <= '{$date_of_birth_min}' AND u.date_of_birth >= '{$date_of_birth_max}' THEN 1 ELSE 0 END)+";
+                // $scope = $this->calculate_mile($user_info['latitude'],$user_info['longtidue'],$users_preferences['distance_min'],$users_preferences['distance_max']);
                 
-                $preferences = explode('||', $users_preferences['idea_of_fun']);
-                $preferencesString = "'" . implode("','", $preferences) . "'";
-                $query = $query." (CASE WHEN u.idea_of_fun IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
-                
-                if(strpos($users_preferences['body_types'], "I like them all")==false){
-                    $compability_count = $compability_count+ 1;
-                    $preferences = explode('||', $users_preferences['body_types']);
-                    $preferencesString = "'" . implode("','", $preferences) . "'";
-                    $query = $query." (CASE WHEN u.body_type IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
-                }
-                
-                if(strpos($users_preferences['drink_types'], "NoPreference")==false){
-                    $compability_count = $compability_count+ 1;
-                    $preferences = explode('||', $users_preferences['drink_types']);
-                    $preferencesString = "'" . implode("','", $preferences) . "'";
-                    $query = $query." (CASE WHEN u.drink_type IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
-                }
+                // $query = $query . " AND u.latitude <= " . (double)$scope['max_lat'] . " AND u.latitude >= " . (double)$scope['min_lat'] . " AND u.longtidue <= " . (double)$scope['max_lon'] . " AND u.longtidue >= " . (double)$scope['min_lon'] . "";
 
-                if(strpos($users_preferences['smoke_types'], "NoPreference")==false){
-                    $compability_count = $compability_count+ 1;
-                    $preferences = explode('||', $users_preferences['smoke_types']);
-                    $preferencesString = "'" . implode("','", $preferences) . "'";
-                    $query = $query." (CASE WHEN  u.smoke_type IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
-                }
-                
-                $preferences = explode('||', $users_preferences['education_levels']);
-                $preferencesString = "'" . implode("','", $preferences) . "'";
-                $query = $query." (CASE WHEN u.education_level IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
-
-                $preferences = explode('||', $users_preferences['cultural_background']);
-                $preferencesString = "'" . implode("','", $preferences) . "'";
-                $query = $query." (CASE WHEN u.cultural_background IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
-
-                $preferences = explode('||', $users_preferences['political_preferences']);
-                $preferencesString = "'" . implode("','", $preferences) . "'";
-                $query = $query . " (CASE WHEN u.consider_myself IN ({$preferencesString}) THEN 1 ELSE 0 END)+(";
-
-                $query = $query."SELECT COUNT(*) FROM users_answers q1 JOIN users_answers q2 ON q1.question_id = q2.question_id AND q1.answer = q2.answer WHERE q1.user_id = u.id AND q2.user_id = '{$user->id}') / ( SELECT COUNT(*) FROM users_answers WHERE user_id = '{$user->id}')";
-
-                $query = $query.")/{$compability_count} >=0.5";
+                // $query = $query." AND u.date_of_birth <= '{$date_of_birth_min}' AND u.date_of_birth >= '{$date_of_birth_max}'";
 
                 $query = $query." GROUP BY u.id";
 
@@ -750,162 +640,8 @@ class Apis extends REST_Controller {
                 $this->response(['success0' => true, 'users' => $users, 'query0' => $query], REST_Controller::HTTP_OK);
             }
         }
-        $this->response($user_compabilityquestion);
     }
-    public function load_speeddating_users_get() {
-        // Verify the token
-        $token = $this->input->get_request_header('Auth-Token');
-        if (!$this->verify_token($token)) {
-            $this->response("You are not autorized to use the app.", REST_Controller::HTTP_BAD_REQUEST);
-        }
-
-        // Retrieve the user record from the token
-        $decoded_token = $this->decode_token($token);
-        $user = $decoded_token['user'];
-
-        $latitude = $this->get('latitude');
-        $lontitude = $this->get('longtidue');
-        $travel_mode = $this->get('travel_enabled');
-
-        $users_preferences = $this->user_preference_model->getRows(['returnType' => 'single', 'conditions' => ['user_id' => $user->id]]);
-        $user_info = $this->user_model->getRows(['returnType' => 'single', 'conditions' => ['id' => $user->id]]);
-        $user_compabilityquestion = $this->user_answer_model->getRows(['returnType' => 'multiple', 'conditions'=> ['user_id'=> 36]]);
-        
-        if ($users_preferences === false) {
-            $this->response(['success' => true, 'users' => []], REST_Controller::HTTP_OK);
-        } else {
-            $compability_count = 7.0;
-            if($travel_mode==1){
-                $query = "SELECT u.*, up.photo FROM users u LEFT JOIN users_photos up ON up.user_id = u.id WHERE u.is_winkyblinking_enabled=1 AND u.is_ghost_mode_enabled <> 1 AND u.id <> '{$user->id}' AND u.id NOT IN (SELECT opponent_id AS id FROM swipes WHERE user_id = '{$user->id}') AND (";
-
-                if ($users_preferences['looking_for'] !== "Both") {
-                    $compability_count = $compability_count+ 1;
-                    $query = $query."  ( CASE WHEN u.gender = '{$users_preferences['looking_for']}' THEN 1 ELSE 0 END) +";
-                }
-                $query = $query."(CASE WHEN u.height >= {$users_preferences['height_min']} AND u.height <= {$users_preferences['height_max']} THEN 1 ELSE 0 END) +";
-
-                $date_of_birth_min = strtotime("-{$users_preferences['age_min']} year", time());
-                $date_of_birth_min = date('Y-m-d', $date_of_birth_min);
-
-                $date_of_birth_max = strtotime("-{$users_preferences['age_max']} year", time());
-                $date_of_birth_max = date('Y-m-d', $date_of_birth_max);
-
-                $scope = $this->calculate_mile($user_info['latitude'],$user_info['longtidue'],$latitude,$lontitude);
-                
-                $query = $query . "(CASE WHEN u.latitude <= " . (double)$scope['max_lat'] . " AND u.latitude >= " . (double)$scope['min_lat'] . " AND u.longtidue <= " . (double)$scope['max_lon'] . " AND u.longtidue >= " . (double)$scope['min_lon'] . "THEN 1 ELSE 0 END) +";
-
-
-                $query = $query." (CASE WHEN u.date_of_birth <= '{$date_of_birth_min}' AND u.date_of_birth >= '{$date_of_birth_max}' THEN 1 ELSE 0 END)+";
-                
-                $preferences = explode('||', $users_preferences['idea_of_fun']);
-                $preferencesString = "'" . implode("','", $preferences) . "'";
-                $query = $query." (CASE WHEN u.idea_of_fun IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
-                
-                if(strpos($users_preferences['body_types'], "I like them all")==false){
-                    $compability_count = $compability_count+ 1;
-                    $preferences = explode('||', $users_preferences['body_types']);
-                    $preferencesString = "'" . implode("','", $preferences) . "'";
-                    $query = $query." (CASE WHEN u.body_type IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
-                }
-                
-                if(strpos($users_preferences['drink_types'], "NoPreference")==false){
-                    $compability_count = $compability_count+ 1;
-                    $preferences = explode('||', $users_preferences['drink_types']);
-                    $preferencesString = "'" . implode("','", $preferences) . "'";
-                    $query = $query." (CASE WHEN u.drink_type IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
-                }
-
-                if(strpos($users_preferences['smoke_types'], "NoPreference")==false){
-                    $compability_count = $compability_count+ 1;
-                    $preferences = explode('||', $users_preferences['smoke_types']);
-                    $preferencesString = "'" . implode("','", $preferences) . "'";
-                    $query = $query." (CASE WHEN  u.smoke_type IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
-                }
-
-                $preferences = explode('||', $users_preferences['education_levels']);
-                $preferencesString = "'" . implode("','", $preferences) . "'";
-                $query = $query." (CASE WHEN u.education_level IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
-
-                $preferences = explode('||', $users_preferences['cultural_background']);
-                $preferencesString = "'" . implode("','", $preferences) . "'";
-                $query = $query." (CASE WHEN u.cultural_background IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
-
-                $preferences = explode('||', $users_preferences['political_preferences']);
-                $preferencesString = "'" . implode("','", $preferences) . "'";
-                $query = $query . " (CASE WHEN u.consider_myself IN ({$preferencesString}) THEN 1 ELSE 0 END)";
-                $query = $query.")/{$compability_count} >=0.1";
-                $query = $query." GROUP BY u.id ORDER BY RAND() LIMIT 1;";
-
-                $users = $this->global_model->query($query);
-                $this->response(['success1' => true, 'users' => $users, 'query1' => $query], REST_Controller::HTTP_OK);
-            }else if($travel_mode==0){
-                $query = "SELECT u.*, up.photo FROM users u LEFT JOIN users_photos up ON up.user_id = u.id WHERE u.is_winkyblinking_enabled=1 AND u.is_ghost_mode_enabled <> 1 AND u.id <> '{$user->id}' AND u.id NOT IN (SELECT opponent_id AS id FROM swipes WHERE user_id = '{$user->id}') AND (";
-
-                if ($users_preferences['looking_for'] !== "Both") {
-                    $compability_count = $compability_count+ 1;
-                    $query = $query."  ( CASE WHEN u.gender = '{$users_preferences['looking_for']}' THEN 1 ELSE 0 END) +";
-                }
-                $query = $query."(CASE WHEN u.height >= {$users_preferences['height_min']} AND u.height <= {$users_preferences['height_max']} THEN 1 ELSE 0 END) +";
-
-                $date_of_birth_min = strtotime("-{$users_preferences['age_min']} year", time());
-                $date_of_birth_min = date('Y-m-d', $date_of_birth_min);
-
-                $date_of_birth_max = strtotime("-{$users_preferences['age_max']} year", time());
-                $date_of_birth_max = date('Y-m-d', $date_of_birth_max);
-
-                $scope = $this->calculate_mile($user_info['latitude'],$user_info['longtidue'],$users_preferences['distance_min'],$users_preferences['distance_max']);
-                
-                $query = $query . "(CASE WHEN u.latitude <= " . (double)$scope['max_lat'] . " AND u.latitude >= " . (double)$scope['min_lat'] . " AND u.longtidue <= " . (double)$scope['max_lon'] . " AND u.longtidue >= " . (double)$scope['min_lon'] . "THEN 1 ELSE 0 END) +";
-
-
-                $query = $query." (CASE WHEN u.date_of_birth <= '{$date_of_birth_min}' AND u.date_of_birth >= '{$date_of_birth_max}' THEN 1 ELSE 0 END)+";
-                
-                $preferences = explode('||', $users_preferences['idea_of_fun']);
-                $preferencesString = "'" . implode("','", $preferences) . "'";
-                $query = $query." (CASE WHEN u.idea_of_fun IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
-                
-                if(strpos($users_preferences['body_types'], "I like them all")==false){
-                    $compability_count = $compability_count+ 1;
-                    $preferences = explode('||', $users_preferences['body_types']);
-                    $preferencesString = "'" . implode("','", $preferences) . "'";
-                    $query = $query." (CASE WHEN u.body_type IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
-                }
-                
-                if(strpos($users_preferences['drink_types'], "NoPreference")==false){
-                    $compability_count = $compability_count+ 1;
-                    $preferences = explode('||', $users_preferences['drink_types']);
-                    $preferencesString = "'" . implode("','", $preferences) . "'";
-                    $query = $query." (CASE WHEN u.drink_type IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
-                }
-
-                if(strpos($users_preferences['smoke_types'], "NoPreference")==false){
-                    $compability_count = $compability_count+ 1;
-                    $preferences = explode('||', $users_preferences['smoke_types']);
-                    $preferencesString = "'" . implode("','", $preferences) . "'";
-                    $query = $query." (CASE WHEN  u.smoke_type IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
-                }
-                
-                $preferences = explode('||', $users_preferences['education_levels']);
-                $preferencesString = "'" . implode("','", $preferences) . "'";
-                $query = $query." (CASE WHEN u.education_level IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
-
-                $preferences = explode('||', $users_preferences['cultural_background']);
-                $preferencesString = "'" . implode("','", $preferences) . "'";
-                $query = $query." (CASE WHEN u.cultural_background IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
-
-                $preferences = explode('||', $users_preferences['political_preferences']);
-                $preferencesString = "'" . implode("','", $preferences) . "'";
-                $query = $query . " (CASE WHEN u.consider_myself IN ({$preferencesString}) THEN 1 ELSE 0 END)";
-                $query = $query.")/{$compability_count} >=0.1";
-
-                $query = $query." GROUP BY u.id ORDER BY RAND() LIMIT 1;";
-
-                $users = $this->global_model->query($query);
-                $this->response(['success0' => true, 'users' => $users, 'query0' => $query], REST_Controller::HTTP_OK);
-            }
-        }
-        $this->response($user_compabilityquestion);
-    }
+    
 
 
 
@@ -1363,19 +1099,12 @@ class Apis extends REST_Controller {
         
 
         $winkyblast_count = $this->user_model->getRows(['returnType' => 'single', 'conditions' => ['id' => $user->id]]);
-        $opponent = $this->user_model->getRows(['returnType'=> 'single', 'conditions' => ['id'=> $input['opponent_id']]]);
-
         $wink_send = $this->swipe_model->getRows(['returnType' => 'single', 'conditions' => ['user_id' =>(int)$input['opponent_id'], 'opponent_id'=>(int)$user->id,'type'=>'Wink']]);
         
         if((int)$winkyblast_count['winkyblasts_count']>0){
             // if(!$winkyblast_send){
                 $insert = $this->blast_model->insert($input);
-                if($opponent['winkyblsts_count']>0 && $opponent['is_winky_badge_enabled']==1){
-                    $query = "UPDATE users SET winkyblasts_count = winkyblasts_count - 1 WHERE id = '{$input['opponent_id']}'";
-                }else {
-                    $query = "UPDATE users SET winkyblasts_count = winkyblasts_count - 1 WHERE id = '$user->id'";
-                }
-                
+                $query = "UPDATE users SET winkyblasts_count = winkyblasts_count - 1 WHERE id = '$user->id'";
                 $this->global_model->query($query);
                 if($insert) {
                     $input['type'] = "Wink";
@@ -1397,51 +1126,6 @@ class Apis extends REST_Controller {
             $this->response(['success' => 'You have already used your all Winkyblasts.Please buy winkyblast.'], REST_Controller::HTTP_OK);
         }
     }
-
-    // public function sponsor_blast_user_post() {
-    //     // Verify the token
-    //     $token = $this->input->get_request_header('Auth-Token');
-    //     if (!$this->verify_token($token)) {
-    //         $this->response("You are not autorized to use the app.", REST_Controller::HTTP_BAD_REQUEST);
-    //     }
-
-    //     // Retrieve the user record from the token
-    //     $decoded_token = $this->decode_token($token);
-    //     $user = $decoded_token['user'];
-
-    //     $input = $this->post();
-    //     $input['user_id'] = $user->id;
-
-        
-
-    //     $winkyblast_count = $this->user_model->getRows(['returnType' => 'single', 'conditions' => ['id' => $input['opponent_id']]]);
-    //     $wink_send = $this->swipe_model->getRows(['returnType' => 'single', 'conditions' => ['user_id' =>(int)$input['opponent_id'], 'opponent_id'=>(int)$user->id,'type'=>'Wink']]);
-        
-    //     if((int)$winkyblast_count['winkyblasts_count']>0){
-    //         // if(!$winkyblast_send){
-    //             $insert = $this->blast_model->insert($input);
-    //             $query = "UPDATE users SET winkyblasts_count = winkyblasts_count - 1 WHERE id = '{$input['opponent_id']}'";
-    //             $this->global_model->query($query);
-    //             if($insert) {
-    //                 $input['type'] = "Wink";
-    //                 $this->swipe_model->insert($input);
-    //                 if($wink_send){
-    //                     $this->match_model->insert(['user_id' => $input['opponent_id'], 'opponent_id' => $input['user_id']]);
-    //                     $this->match_model->insert(['user_id' => $input['user_id'], 'opponent_id' => $input['opponent_id']]);
-    //                     $this->response(['success' => 'You have successfully sent your Winkyblasts.'], REST_Controller::HTTP_OK);
-    //                 }else{
-    //                     $this->response(['success' => 'You have successfully sent your Winkyblasts.'], REST_Controller::HTTP_OK);
-    //                 }        
-    //             } else {
-    //                 $this->response("Some problems occurred, please try again.", REST_Controller::HTTP_BAD_REQUEST);
-    //             }
-    //         // }else {
-    //         //     $this->response(['success' => 'You have already sent your Winkyblasts.'], REST_Controller::HTTP_OK);
-    //         // }
-    //     }else {
-    //         $this->response(['success' => 'You have already used your all Winkyblasts.Please buy winkyblast.'], REST_Controller::HTTP_OK);
-    //     }
-    // }
 
     public function load_blasts_get($limit) {
         // Verify the token

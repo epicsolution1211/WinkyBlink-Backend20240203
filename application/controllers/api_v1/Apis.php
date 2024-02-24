@@ -684,17 +684,17 @@ class Apis extends REST_Controller {
                 $users = $this->global_model->query($query);
                 $this->response(['success1' => true, 'users' => $users, 'query1' => $query], REST_Controller::HTTP_OK);
             }else if($travel_mode==0){
-                $query = "SELECT u.*, up.photo FROM users u LEFT JOIN users_photos up ON up.user_id = u.id WHERE u.is_ghost_mode_enabled <> 1 AND u.id <> '{$user->id}' AND u.id NOT IN (SELECT opponent_id AS id FROM swipes WHERE user_id = '{$user->id}') ";
+                $query = "SELECT u.*, up.photo FROM users u LEFT JOIN users_photos up ON up.user_id = u.id WHERE u.is_ghost_mode_enabled <> 1 AND u.id <> '{$user->id}' AND u.id NOT IN (SELECT opponent_id AS id FROM swipes WHERE user_id = '{$user->id}') AND ( ";
 
                 $scope = $this->calculate_mile($user_info['latitude'],$user_info['longtidue'],$users_preferences['distance_min'],$users_preferences['distance_max']);
                 
-                $query = $query . "AND u.latitude <= " . (double)$scope['max_lat'] . " AND u.latitude >= " . (double)$scope['min_lat'] . " AND u.longtidue <= " . (double)$scope['max_lon'] . " AND u.longtidue >= " . (double)$scope['min_lon'] . "AND ( ";
+                // $query = $query . "AND u.latitude <= " . (double)$scope['max_lat'] . " AND u.latitude >= " . (double)$scope['min_lat'] . " AND u.longtidue <= " . (double)$scope['max_lon'] . " AND u.longtidue >= " . (double)$scope['min_lon'] . " AND ( ";
 
                 if ($users_preferences['looking_for'] !== "Both") {
                     $compability_count = $compability_count+ 1;
                     $query = $query."  ( CASE WHEN u.gender = '{$users_preferences['looking_for']}' THEN 1 ELSE 0 END) +";
                 }
-                $query = $query."(CASE WHEN u.height >= {$users_preferences['height_min']} AND u.height <= {$users_preferences['height_max']} THEN 1 ELSE 0 END) +";
+                $query = $query." (CASE WHEN u.height >= {$users_preferences['height_min']} AND u.height <= {$users_preferences['height_max']} THEN 1 ELSE 0 END) +";
 
                 $date_of_birth_min = strtotime("-{$users_preferences['age_min']} year", time());
                 $date_of_birth_min = date('Y-m-d', $date_of_birth_min);
@@ -1312,7 +1312,7 @@ class Apis extends REST_Controller {
         $input['user_id'] = $user->id;
 
         $swipe_count = $this->swipe_model->getRows(['returnType' => 'single', 'conditions' => ['user_id' => (int)$user->id,'opponent_id'=>(int)$input['opponent_id']]]);
-        $blast_count = $this->blast_model->getRows(['returnType' => 'single', 'conditions' => ['user_id' => (int)$user->id,'opponent_id'=>(int)$input['opponent_id']]]);
+        $blast_count = $this->blast_model->getRows(['returnType' => 'single', 'conditions' => ['user_id' => (int)$user->id,'opponent_id'=>(int)$input['opponent_id'],'type'=>"NoSponsor"]]);
         $delete = $this->global_model->query("DELETE FROM swipes WHERE user_id = ".(int)$user->id." AND opponent_id = ".(int)$input['opponent_id']);
         
         if ($delete)
@@ -1370,10 +1370,14 @@ class Apis extends REST_Controller {
         
         if((int)$winkyblast_count['winkyblasts_count']>0){
             // if(!$winkyblast_send){
-                $insert = $this->blast_model->insert($input);
-                if($opponent['winkyblsts_count']>0 && $opponent['is_winky_badge_enabled']==1){
+                
+                if($opponent['winkyblasts_count']>0 && $opponent['is_winky_badge_enabled']==1){
+                    $input['type'] = "Sponsor";
+                    $insert = $this->blast_model->insert($input);
                     $query = "UPDATE users SET winkyblasts_count = winkyblasts_count - 1 WHERE id = '{$input['opponent_id']}'";
                 }else {
+                    $input['type'] = "NoSponsor";
+                    $insert = $this->blast_model->insert($input);
                     $query = "UPDATE users SET winkyblasts_count = winkyblasts_count - 1 WHERE id = '$user->id'";
                 }
                 

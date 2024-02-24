@@ -204,7 +204,7 @@ class Apis extends REST_Controller {
                 $user['photos'] = $user_photos;
                 $user['preferences'] = $users_preferences;
                 
-                $this->response(['success' => true, 'token' => $token, 'uid' => $user['uid'], 'qb_id' => $user['qb_id'], 'profile_completion' => $profile_completion,'plansubscribed_status'=>$planSubscribedstatus], REST_Controller::HTTP_OK);
+                $this->response(['success' => true, 'token' => $token, 'current'=>$currentDate,'uid' => $user['uid'], 'qb_id' => $user['qb_id'], 'profile_completion' => $profile_completion,'plansubscribed_status'=>$planSubscribedstatus], REST_Controller::HTTP_OK);
         } else {
             $this->response("The phone number or password you entered is incorrect.", REST_Controller::HTTP_BAD_REQUEST);
         }
@@ -619,11 +619,11 @@ class Apis extends REST_Controller {
             $compability_count = 6.0;
             if($travel_mode==1){
                 
-                $query = "SELECT u.*, up.photo FROM users u LEFT JOIN users_photos up ON up.user_id = u.id WHERE u.is_ghost_mode_enabled <> 1 AND u.id <> '{$user->id}' AND u.id NOT IN (SELECT opponent_id AS id FROM swipes WHERE user_id = '{$user->id}')";
+                $query = "SELECT u.*, up.photo FROM users u LEFT JOIN users_photos up ON up.user_id = u.id WHERE u.is_ghost_mode_enabled <> 1 AND u.id <> '{$user->id}' AND u.id NOT IN (SELECT opponent_id AS id FROM swipes WHERE user_id = '{$user->id}') ";
 
                 $scope = $this->calculate_mile($user_info['latitude'],$user_info['longtidue'],$latitude,$lontitude);
                 
-                $query = $query . " AND u.latitude <= " . (double)$scope['max_lat'] . " AND u.latitude >= " . (double)$scope['min_lat'] . " AND u.longtidue <= " . (double)$scope['max_lon'] . " AND u.longtidue >= " . (double)$scope['min_lon'] . " AND (";
+                $query = $query . "AND u.latitude <= " . (double)$scope['max_lat'] . " AND u.latitude >= " . (double)$scope['min_lat'] . " AND u.longtidue <= " . (double)$scope['max_lon'] . " AND u.longtidue >= " . (double)$scope['min_lon'] . " AND (";
                 if ($users_preferences['looking_for'] !== "Both") {
                     $compability_count = $compability_count+ 1;
                     $query = $query."  ( CASE WHEN u.gender = '{$users_preferences['looking_for']}' THEN 1 ELSE 0 END) +";
@@ -642,27 +642,27 @@ class Apis extends REST_Controller {
                 $preferencesString = "'" . implode("','", $preferences) . "'";
                 $query = $query." (CASE WHEN u.idea_of_fun IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
                 
-                if(strpos($users_preferences['body_types'], "I like them all")==false){
+                if(strpos($users_preferences['body_types'], "I like them all")==false && strpos($users_preferences['body_types'], "I like them all")!=0){
                     $compability_count = $compability_count+ 1;
                     $preferences = explode('||', $users_preferences['body_types']);
                     $preferencesString = "'" . implode("','", $preferences) . "'";
                     $query = $query." (CASE WHEN u.body_type IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
                 }
                 
-                if(strpos($users_preferences['drink_types'], "NoPreference")==false){
+                if(strpos($users_preferences['drink_types'], "NoPreference")==false && strpos($users_preferences['drink_types'], "NoPreference")!=0){
                     $compability_count = $compability_count+ 1;
                     $preferences = explode('||', $users_preferences['drink_types']);
                     $preferencesString = "'" . implode("','", $preferences) . "'";
                     $query = $query." (CASE WHEN u.drink_type IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
                 }
 
-                if(strpos($users_preferences['smoke_types'], "NoPreference")==false){
+                if(strpos($users_preferences['smoke_types'], "NoPreference")==false && strpos($users_preferences['smoke_types'], "NoPreference")!=0){
                     $compability_count = $compability_count+ 1;
                     $preferences = explode('||', $users_preferences['smoke_types']);
                     $preferencesString = "'" . implode("','", $preferences) . "'";
                     $query = $query." (CASE WHEN  u.smoke_type IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
                 }
-
+                
                 $preferences = explode('||', $users_preferences['education_levels']);
                 $preferencesString = "'" . implode("','", $preferences) . "'";
                 $query = $query." (CASE WHEN u.education_level IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
@@ -673,11 +673,12 @@ class Apis extends REST_Controller {
 
                 $preferences = explode('||', $users_preferences['political_preferences']);
                 $preferencesString = "'" . implode("','", $preferences) . "'";
-                $query = $query . " (CASE WHEN u.consider_myself IN ({$preferencesString}) THEN 1 ELSE 0 END)+(";
+                $query = $query . " (CASE WHEN u.consider_myself IN ({$preferencesString}) THEN 1 ELSE 0 END)";
 
-                $query = $query."SELECT COUNT(*) FROM users_answers q1 JOIN users_answers q2 ON q1.question_id = q2.question_id AND q1.answer = q2.answer WHERE q1.user_id = u.id AND q2.user_id = '{$user->id}') / ( SELECT COUNT(*) FROM users_answers WHERE user_id = '{$user->id}')";
+                $query = $query.")/{$compability_count}+ IFNULL((";
+                
+                $query = $query."SELECT COUNT(*) FROM users_answers q1 JOIN users_answers q2 ON q1.question_id = q2.question_id AND q1.answer = q2.answer WHERE q1.user_id = u.id AND q2.user_id = '{$user->id}') / ( SELECT COUNT(*) FROM users_answers WHERE user_id = '{$user->id}'),0) >=0.5";
 
-                $query = $query.")/{$compability_count} >=0.5";
                 $query = $query." GROUP BY u.id";
 
                 $users = $this->global_model->query($query);
@@ -687,7 +688,7 @@ class Apis extends REST_Controller {
 
                 $scope = $this->calculate_mile($user_info['latitude'],$user_info['longtidue'],$users_preferences['distance_min'],$users_preferences['distance_max']);
                 
-                $query = $query . " AND u.latitude <= " . (double)$scope['max_lat'] . " AND u.latitude >= " . (double)$scope['min_lat'] . " AND u.longtidue <= " . (double)$scope['max_lon'] . " AND u.longtidue >= " . (double)$scope['min_lon'] . " AND (";
+                $query = $query . "AND u.latitude <= " . (double)$scope['max_lat'] . " AND u.latitude >= " . (double)$scope['min_lat'] . " AND u.longtidue <= " . (double)$scope['max_lon'] . " AND u.longtidue >= " . (double)$scope['min_lon'] . "AND ( ";
 
                 if ($users_preferences['looking_for'] !== "Both") {
                     $compability_count = $compability_count+ 1;
@@ -707,21 +708,21 @@ class Apis extends REST_Controller {
                 $preferencesString = "'" . implode("','", $preferences) . "'";
                 $query = $query." (CASE WHEN u.idea_of_fun IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
                 
-                if(strpos($users_preferences['body_types'], "I like them all")==false){
+                if(strpos($users_preferences['body_types'], "I like them all")==false && strpos($users_preferences['body_types'], "I like them all")!=0){
                     $compability_count = $compability_count+ 1;
                     $preferences = explode('||', $users_preferences['body_types']);
                     $preferencesString = "'" . implode("','", $preferences) . "'";
                     $query = $query." (CASE WHEN u.body_type IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
                 }
                 
-                if(strpos($users_preferences['drink_types'], "NoPreference")==false){
+                if(strpos($users_preferences['drink_types'], "NoPreference")==false && strpos($users_preferences['drink_types'], "NoPreference")!=0){
                     $compability_count = $compability_count+ 1;
                     $preferences = explode('||', $users_preferences['drink_types']);
                     $preferencesString = "'" . implode("','", $preferences) . "'";
                     $query = $query." (CASE WHEN u.drink_type IN ({$preferencesString}) THEN 1 ELSE 0 END)+";
                 }
 
-                if(strpos($users_preferences['smoke_types'], "NoPreference")==false){
+                if(strpos($users_preferences['smoke_types'], "NoPreference")==false && strpos($users_preferences['smoke_types'], "NoPreference")!=0){
                     $compability_count = $compability_count+ 1;
                     $preferences = explode('||', $users_preferences['smoke_types']);
                     $preferencesString = "'" . implode("','", $preferences) . "'";
@@ -738,11 +739,11 @@ class Apis extends REST_Controller {
 
                 $preferences = explode('||', $users_preferences['political_preferences']);
                 $preferencesString = "'" . implode("','", $preferences) . "'";
-                $query = $query . " (CASE WHEN u.consider_myself IN ({$preferencesString}) THEN 1 ELSE 0 END)+(";
+                $query = $query . " (CASE WHEN u.consider_myself IN ({$preferencesString}) THEN 1 ELSE 0 END)";
 
-                $query = $query."SELECT COUNT(*) FROM users_answers q1 JOIN users_answers q2 ON q1.question_id = q2.question_id AND q1.answer = q2.answer WHERE q1.user_id = u.id AND q2.user_id = '{$user->id}') / ( SELECT COUNT(*) FROM users_answers WHERE user_id = '{$user->id}')";
-
-                $query = $query.")/{$compability_count} >=0.5";
+                $query = $query.")/{$compability_count}+ IFNULL((";
+                
+                $query = $query."SELECT COUNT(*) FROM users_answers q1 JOIN users_answers q2 ON q1.question_id = q2.question_id AND q1.answer = q2.answer WHERE q1.user_id = u.id AND q2.user_id = '{$user->id}') / ( SELECT COUNT(*) FROM users_answers WHERE user_id = '{$user->id}'),0) >=0.5";
 
                 $query = $query." GROUP BY u.id";
 

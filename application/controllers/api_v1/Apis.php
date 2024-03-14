@@ -674,7 +674,7 @@ class Apis extends REST_Controller {
                 $query = "SELECT u.*, up.photo FROM users u LEFT JOIN users_photos up ON up.user_id = u.id WHERE u.is_ghost_mode_enabled <> 1 AND u.id <> '{$user->id}' AND u.id NOT IN (SELECT opponent_id AS id FROM swipes WHERE user_id = '{$user->id}') ";
 
                 // $scope = $this->calculate_mile($user_info['latitude'],$user_info['longtidue'],$latitude,$lontitude);
-                $scope = $this->calculate_mile($user_info['latitude'],$user_info['longtidue'],$users_preferences['distance_min'],$users_preferences['distance_max']);
+                $scope = $this->calculate_mile($user_info['travel_latitude'],$user_info['travel_longtidue'],$users_preferences['distance_min'],$users_preferences['distance_max']);
 
                 
                 $query = $query . "AND u.latitude <= " . (double)$scope['max_lat'] . " AND u.latitude >= " . (double)$scope['min_lat'] . " AND u.longtidue <= " . (double)$scope['max_lon'] . " AND u.longtidue >= " . (double)$scope['min_lon'] . " AND (";
@@ -738,11 +738,11 @@ class Apis extends REST_Controller {
                 $users = $this->global_model->query($query);
                 $this->response(['success1' => true, 'users' => $users, 'query1' => $query], REST_Controller::HTTP_OK);
             }else if($travel_mode==0){
-                $query = "SELECT u.*, up.photo FROM users u LEFT JOIN users_photos up ON up.user_id = u.id WHERE u.is_ghost_mode_enabled <> 1 AND u.id <> '{$user->id}' AND u.id NOT IN (SELECT opponent_id AS id FROM swipes WHERE user_id = '{$user->id}')";
+                $query = "SELECT u.*, up.photo FROM users u LEFT JOIN users_photos up ON up.user_id = u.id WHERE u.is_ghost_mode_enabled <> 1 AND u.id <> '{$user->id}' AND u.id NOT IN (SELECT opponent_id AS id FROM swipes WHERE user_id = '{$user->id}') AND (";
 
                 $scope = $this->calculate_mile($user_info['latitude'],$user_info['longtidue'],$users_preferences['distance_min'],$users_preferences['distance_max']);
                 
-                $query = $query . "AND u.latitude <= " . (double)$scope['max_lat'] . " AND u.latitude >= " . (double)$scope['min_lat'] . " AND u.longtidue <= " . (double)$scope['max_lon'] . " AND u.longtidue >= " . (double)$scope['min_lon'] . " AND ( ";
+                // $query = $query . "AND u.latitude <= " . (double)$scope['max_lat'] . " AND u.latitude >= " . (double)$scope['min_lat'] . " AND u.longtidue <= " . (double)$scope['max_lon'] . " AND u.longtidue >= " . (double)$scope['min_lon'] . " AND ( ";
 
                 if ($users_preferences['looking_for'] !== "Both") {
                     $compability_count = $compability_count+ 1;
@@ -1608,6 +1608,27 @@ class Apis extends REST_Controller {
         }
     }
 
+    public function blockcheck_get($opponent_id){
+        $token = $this->input->get_request_header('Auth-Token');
+        if (!$this->verify_token($token)) {
+            $this->response("You are not autorized to use the app.", REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        // Retrieve the user record from the token
+        $decoded_token = $this->decode_token($token);
+        $user = $decoded_token['user'];
+
+        $input = $this->get();
+
+        $blockstatus = $this->block_model->getRows(['returnType'=>'single','conditions'=>['user_id'=>(int)$opponent_id,'opponent_id'=>(int)$user->id]]);
+        if($blockstatus){
+            $this->response(['block_status'=>true],REST_Controller::HTTP_OK);
+        }else {
+            $this->response(['block_status'=>false],REST_Controller::HTTP_OK);
+        }
+
+    }
+
     public function load_blocked_users_get() {
         // Verify the token
         $token = $this->input->get_request_header('Auth-Token');
@@ -2327,5 +2348,35 @@ class Apis extends REST_Controller {
             'QB-Token '.$token
         ));
         $response = curl_exec($curl);
+    }
+
+    public function send_push_notification_get(){
+        $serverkey = 'AAAA67HpCP8:APA91bEXtw_w_IXVvAZD1fMl82sbhdIN4v0zZC8fozn-KAh9-LuJRG_cfXU2900b7hdr2necFyfOiTqxAj6mfO-oRVDiMP3d7AX_tyY0tOx9InPnBpVTBxkYzkr-OAV4wLWd5C9Hr_gh';// this is a Firebase server key 
+        $data = array(
+                    'registration_ids' => ['dDuueVEVQliVciZplauj1z:APA91bH0isfWDm_4nJCNnLTU0SFQQedEG8EcM97ofEy5x8nilKYcXA30VxO9TuGLSEwMnkSGz7l7Ra4HiJQQbCoTKDQnoRGqNvh8P7-i9s5MlaAVWRpdj0LRKcUbmcCbeVHAyIgrA7fB','dgIMBtuMQsW4K9rF_zPpAi:APA91bGWkZdAGplBAMCdTmC2h2z5e2QhyxGE1nUtr6QJdOLAeFbr9xUXMOXd07zlJKFeHrJN67qV2NG7qPiq8ExQuX5aJWvCyEweeQgjLkWzbMprZ9SNuNGrDNxi21G91JI6p_Ycl47t'],
+                    'topic'=>'virtual',
+                    'notification' => 
+                        array(
+                            'body' => 'This is push notification'.time(),
+                            'title' => 'Virtual Date(from CI backend)',
+                        ),
+                        // "condition"=> "'dogs' in topics || 'cats' in topics",
+                        "data"=> array(
+                            "click_action"=> "FLUTTER_NOTIFICATION_CLICK",
+                            "sound"=> "default", 
+                                "status"=> "done"
+                            )
+                        );
+                             
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL,"https://fcm.googleapis.com/fcm/send");
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_POSTFIELDS,json_encode($data));  //Post Fields
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json', 'Authorization: key='.$serverkey));
+        $output = curl_exec ($ch);
+        curl_close ($ch);
+        // return $output;
+        $this->response($output);
     }
 }
